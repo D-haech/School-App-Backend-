@@ -41,8 +41,7 @@ def login_user(request):
         return Response(
             {"error": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED
         )
-
-
+    
 #creates a school account
 @api_view(['POST'])
 def create_school(request):
