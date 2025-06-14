@@ -26,7 +26,7 @@ SECRET_KEY = "django-insecure-v*a5z)po5a4q+3+&l+w_mgg79@*50#a=f&hz#*4p(*b$xx9ea8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["https://school-app-backend-52dk.onrender.com"]
+ALLOWED_HOSTS = ["school-app-backend-52dk.onrender.com"]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
