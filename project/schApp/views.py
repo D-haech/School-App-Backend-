@@ -30,7 +30,7 @@ def register_user(request):
 
 
 # This view will login a user with the password and username already registered
-@api_view(["GET"])
+@api_view(["POST"])
 def login_user(request):
     username = request.data.get("username")
     password = request.data.get("password")
@@ -116,3 +116,11 @@ def student_info(request):
     student = request.user
     serialize = CustomUserSerializer(student)
     return Response(serialize.data, status=status.HTTP_200_OK)
+
+# This is used to get the current user logged in
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_logged_in_user(request):
+    user = request.user
+    serialize = CustomUserSerializer(user)
+    return Response(serialize.data, status = status.HTTP_200_OK)
