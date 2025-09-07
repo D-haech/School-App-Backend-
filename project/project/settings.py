@@ -26,7 +26,9 @@ SECRET_KEY = "django-insecure-v*a5z)po5a4q+3+&l+w_mgg79@*50#a=f&hz#*4p(*b$xx9ea8
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ["school-app-backend-52dk.onrender.com"]
+
+CORS_ALLOWED_CREDENTIALS = True
+ALLOWED_HOSTS = ["school-app-backend-52dk.onrender.com", "127.0.0.1", "localhost"]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
@@ -49,6 +51,7 @@ INSTALLED_APPS = [
     "rest_framework.authtoken",
     "schApp.apps.SchappConfig",
     "corsheaders",
+    "drf_yasg",
 ]
 
 MIDDLEWARE = [
@@ -143,6 +146,7 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         "rest_framework.authentication.TokenAuthentication",
+        
     ],
 }
 
@@ -151,7 +155,12 @@ AUTH_USER_MODEL = "schApp.CustomUser"
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "ROTATE_REFRESH_TOKENS": False,
+    "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
     "AUTH_HEADER_TYPES": ("Bearer",),
 }
+
+# AUTHENTICATION_BACKENDS = [
+#     "schApp.backends.RoleAuthenticationBackends",
+#     "django.contrib.auth.backends.ModelBackend",
+# ]

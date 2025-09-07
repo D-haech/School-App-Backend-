@@ -39,3 +39,8 @@ class CustomUserSerializer(serializers.ModelSerializer):
         if "id" not in validated_data:
             validated_data["id"] = uuid.uuid4()
         return CustomUser.objects.create_user(**validated_data)
+
+        #This was created for the swagger class
+class LoginSerializer(serializers.Serializer):
+    username = serializers.CharField()
+    password = serializers.CharField()

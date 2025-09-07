@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from rest_framework import status
 from rest_framework.response import Response
-from schApp.serializer import CustomUserSerializer, SchoolSerializer
+from schApp.serializer import CustomUserSerializer, SchoolSerializer, LoginSerializer
 from django.contrib.auth import get_user_model
 from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth import authenticate
@@ -10,6 +10,9 @@ from rest_framework_simplejwt.exceptions import TokenError
 from .models import CustomUser, School
 from .permissions import IsSchoolAdmin, IsTeacher, IsStudent
 from rest_framework.permissions import IsAuthenticated
+from drf_yasg import openapi
+from drf_yasg.utils import swagger_auto_schema
+from rest_framework.views import APIView
 
 
 # Create your views here.
@@ -19,6 +22,11 @@ User = get_user_model()
 
 
 # This will register a user. The user should register with username and Password
+@swagger_auto_schema(
+    method="post",
+    request_body=CustomUserSerializer,
+    responses={201: CustomUserSerializer, 400: "validation errors"},
+)
 @api_view(["POST"])
 def register_user(request):
     serializer = CustomUserSerializer(data=request.data)
@@ -28,14 +36,15 @@ def register_user(request):
     else:
         return Response(serializer.error_messages, status=status.HTTP_400_BAD_REQUEST)
 
-
-# This view will login a user with the password and username already registered
-@api_view(["POST"])
-def login_user(request):
+    # This view will login a user with the password and username already registered
+    """ @swagger_auto_schema(method='post', request_body=CustomUserSerializer, responses=({200:CustomUserSerializer, 401:"Invalid Credentials"}))
+    @api_view(["POST"])
+    def login_user(request):
     username = request.data.get("username")
     password = request.data.get("password")
+    role = request.data.get("role")
 
-    auth_user = authenticate(username=username, password=password)
+    auth_user = authenticate(username=username, password=password, role=role)
 
     if auth_user is not None:
         refresh = RefreshToken.for_user(auth_user)
@@ -44,10 +53,60 @@ def login_user(request):
     else:
         return Response(
             {"error": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED
+        ) """
+
+
+class LoginView(APIView):
+    # for the schema for swagger
+    serializer_class = LoginSerializer
+
+    @swagger_auto_schema(
+        request_body=serializer_class,
+        responses=({200: "Login Successful", 401: "Invalid Credentials"}),
+    )
+    def post(self, request):
+        username = request.data.get("username")
+        password = request.data.get("password")
+
+        user = authenticate(request, username=username, password=password)
+        if not user:
+            return Response(
+                {"error": "Invalid Credentials"}, status=status.HTTP_401_UNAUTHORIZED
+            )
+
+
+        user_data = CustomUserSerializer(user).data
+        refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+
+        # user_id = CustomUserSerializer(CustomUser).data
+
+        #  Put token in HTTPonly Cookies
+        response = Response(
+            {"message": "login successful", "access": access_token, "user":user_data},
+            status=status.HTTP_200_OK,
         )
+        response.set_cookie(
+            key="access_token",
+            value=access_token,
+            httponly=True,
+            secure=False,
+            samesite="Lax",
+        )
+        response.set_cookie(
+            key="refresh_token",
+            value=str(refresh),
+            httponly=True,
+            samesite="Lax",
+            secure=False,
+        )
+        return response
 
 
-# creates a school account
+# creates a school accountpy
+@swagger_auto_schema(
+    method="post", request_body=SchoolSerializer, responses={201: SchoolSerializer}
+)
 @api_view(["POST"])
 def create_school(request):
     serializer = SchoolSerializer(data=request.data)
@@ -59,14 +118,19 @@ def create_school(request):
 
 
 # This is used to get the entire school object. the entire details of a school
+@swagger_auto_schema(
+    method="get",
+    responses={200: SchoolSerializer(many=True)},
+)
 @api_view(["GET"])
-def get_school(request):
-    school = School.objects.all()
+def get_all_school(request):
+    school = School.objects.all().order_by("name")
     serialize = SchoolSerializer(school, many=True)
     return Response(serialize.data, status=status.HTTP_200_OK)
 
 
 # get all the list of teachers in a school
+@swagger_auto_schema(method="get", responses={200: CustomUserSerializer(many=True)})
 @api_view(["GET"])
 @permission_classes([IsSchoolAdmin])
 def get_all_teachers(request):
@@ -80,6 +144,11 @@ def get_all_teachers(request):
 
 
 # This is used by the school-admin to delete a teacher
+@swagger_auto_schema(
+    method="delete",
+    request_body=CustomUserSerializer,
+    responses={200: "teacher deleted"},
+)
 @api_view(["DELETE"])
 @permission_classes([IsSchoolAdmin])
 def delete_teacher(request, uid):
@@ -87,21 +156,44 @@ def delete_teacher(request, uid):
     teacher.delete()
     return Response({"message": "teacher deleted"}, status=status.HTTP_200_OK)
 
-#This is used to logout
-@api_view(["POST"])
+
+# This is used to logout
+# @swagger_auto_schema(method='post', request_body= responses=, )
+""" @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def logout_user(request):
     try:
         refresh_token = request.data["refresh"]
         token = RefreshToken(refresh_token)
         token.blacklist()
-        return Response ({"message": "Successfully logged out"}, status= status.HTTP_205_RESET_CONTENT)
+        return Response(
+            {"message": "Successfully logged out"}, status=status.HTTP_205_RESET_CONTENT
+        )
     except KeyError:
-        return Response({"error":"Refresh token required"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Refresh token required"}, status=status.HTTP_400_BAD_REQUEST
+        )
     except TokenError:
-        return Response({"error":"Token is invalid or expired"}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(
+            {"error": "Token is invalid or expired"}, status=status.HTTP_400_BAD_REQUEST
+        )
+ """
 
-#This is used to get the logged in teacher's  profile information
+
+class LogOut(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        response = Response(
+            {"message": "Logged Out Successfully"}, status=status.HTTP_200_OK
+        )
+        response.delete_cookie("access_cookie")
+        response.delete_cookie("refresh_token")
+        return response
+
+
+# This is used to get the logged in teacher's  profile information
+@swagger_auto_schema(method="get", responses={200: CustomUserSerializer})
 @api_view(["GET"])
 @permission_classes([IsTeacher])
 def teacher_info(request):
@@ -109,7 +201,12 @@ def teacher_info(request):
     serializer = CustomUserSerializer(teacher)
     return Response(serializer.data, status=status.HTTP_200_OK)
 
-#This is used to get the logged in students' profile information 
+
+# This is used to get the logged in students' profile information
+@swagger_auto_schema(
+    method="get",
+    responses={200: CustomUserSerializer},
+)
 @api_view(["GET"])
 @permission_classes([IsStudent])
 def student_info(request):
@@ -117,10 +214,34 @@ def student_info(request):
     serialize = CustomUserSerializer(student)
     return Response(serialize.data, status=status.HTTP_200_OK)
 
+
 # This is used to get the current user logged in
+@swagger_auto_schema(method="get", responses={200: CustomUserSerializer})
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def get_logged_in_user(request):
     user = request.user
     serialize = CustomUserSerializer(user)
-    return Response(serialize.data, status = status.HTTP_200_OK)
+    return Response(serialize.data, status=status.HTTP_200_OK)
+
+
+# This is used to get a particular school
+""" use ?uid = {then write the uid here} in order to send to get data from API"""
+
+
+class Get_particular_school(APIView):
+    def get(self, request):
+        uid = request.query_params.get("uid")
+
+        if not uid:
+            return Response(
+                {"error": "uid is required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+        try:
+            school = School.objects.get(pk=uid)
+            serialize = SchoolSerializer(school)
+            return Response(serialize.data, status=status.HTTP_200_OK)
+        except School.DoesNotExist:
+            return Response(
+                {"error": "School not found"}, status=status.HTTP_404_NOT_FOUND
+            )
